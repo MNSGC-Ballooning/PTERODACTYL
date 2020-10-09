@@ -5,7 +5,7 @@
 #define serialBAUD 9600           // when using arduino serial monitor, make sure baud rate is set to this same value
 
 #define ppodSwitchPin 30
-#define magnetSwitchPin 31
+#define satSwitchPin 31
 #define commsSwitchPin 32
 #define setAltSwitch 28
 #define altSwitch 29
@@ -18,7 +18,7 @@
 
 int rfd900 = 1; // set true if you want this thing to operate with a rfd900 on serialX (declare above)
 int ppod = 1; // set true if you want this thing to operate as ppod flight computer
-int magnetBootup = 1; // set true if you want to activate flight by waving a magnet over the IMU
+int satCom = 1; // set true if you want to activate flight by waving a magnet over the IMU
 int setAltVal = 1;
 int altVal = 1;
 int baroOn = 1;
@@ -35,6 +35,7 @@ int smartReleasePosition = 170; // the angle in degrees for smart release. Will 
 int smartInitialPosition = 0; // the angle in degrees for smart initial position. Will vary based on smart unit
 bool smartReleaseTransmission = true; // This ensures only one message is relayed to the ground after release has occurred.
 String commandMessage; // Appends a message stating the radio deployed the cubes if that happens
+String proCommand;
 
 String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
@@ -74,6 +75,7 @@ String exclamation = "!"; // this needs to be at the end of every
 bool commandRelease = false;
 String groundCommand;
 String xbeeID = "UMN0";
+String xbeeProID = "AAA";
 bool xbeeAlternation = false; // this will allow the xbee to alternate between sending data to MOC SOC and data via MOC SOC to the ground
 unsigned long int xbeeTimer = 0;
 unsigned long int xbeeRate = 5000; // 10000 millis = 10 seconds
@@ -98,6 +100,7 @@ void setup() {
   if(id4On==0)xbeeID="UMN4";
   if(rfd900==0)xbeeID = "COMM";
   if(ppod==0)xbeeID = "PPOD";
+  if(satCom==0) xbeeID = "SatC"; 
 
   Serial.print("starting OLED setup... ");
   oledSetup();
@@ -132,6 +135,7 @@ void setup() {
   if(rfd900==0) rfd900Setup();
   logData(header);
   if(pullOn==0) pullPin();
+  if(satCom==0) satComSetup(); 
 }
 
 void loop() {
@@ -181,6 +185,7 @@ void pressureToAltitude(){
 void updateData(){
   updateUblox();
   updateXbee();
+  updateXbeePro();
 
   if(millis() - dataTimerIMU > dataRateIMU){
     dataTimerIMU = millis();
@@ -208,7 +213,7 @@ void updateData(){
 
 void checkSwitches(){
   pinMode(ppodSwitchPin, INPUT_PULLUP);
-  pinMode(magnetSwitchPin, INPUT_PULLUP);
+  pinMode(satSwitchPin, INPUT_PULLUP);
   pinMode(commsSwitchPin, INPUT_PULLUP);
   pinMode(baroSwitchPin, INPUT_PULLUP);
   pinMode(id1SwitchPin, INPUT_PULLUP);
@@ -219,7 +224,7 @@ void checkSwitches(){
 
   ppod = digitalRead(ppodSwitchPin);
   rfd900 = digitalRead(commsSwitchPin);
-  magnetBootup = digitalRead(magnetSwitchPin);
+  satCom = digitalRead(satSwitchPin);
   baroOn = digitalRead(baroSwitchPin);
   id1On = digitalRead(id1SwitchPin);
   id2On = digitalRead(id2SwitchPin);
