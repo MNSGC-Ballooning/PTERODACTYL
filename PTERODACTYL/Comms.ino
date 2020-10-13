@@ -1,17 +1,12 @@
 // Contains all of the setup information and functions related to XBee communication. 
 // Students should not have to use or add any code here unless adding new radio commands
+// Some functions for converting numbers to the proper binary elements have been kept in case they're needed fro the SatCom system
 
 #include <RelayXBee.h>
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
-#define rfd900Serial Serial1   //this line should all be commented if you aren't using an RFD900
-#define xbeeProSerial Serial2
-#define XBEE_PRO_BAUD 38400
-
-byte xbeeProRequest[] = {0x41, 0x41, 0x41, 0x2E}; // That is, {'A','A','A','â'}
 
 RelayXBee xbee = RelayXBee(&xbeeSerial, xbeeID);
-RelayXBee xbeePro = RelayXBee(&xbeeProSerial, xbeeProID);
 
 float testFloat = 128.0;
 int testInt = 1280;
@@ -45,21 +40,12 @@ typedef union
   uint8_t bytes[2];
 }INTUNION_t;
 
-// function that takes in a float value and prints it to the xbeePro serial as 4 bytes.
-void sendAddress(){
-  byte address[] = {0x41, 0x41, 0x41};
-  for (int i=0; i<3; i++)
-  {
-    xbeeProSerial.write(address[i]);
-  }
-}
-
 void sendFloat(float sendMe){
   FLOATUNION_t myFloat;
   myFloat.number = sendMe;
   for (int i=0; i<4; i++)
   {
-    xbeeProSerial.write(myFloat.bytes[i]);
+    // Send converted floats here
   }
   sentBytes += 4;
 }
@@ -70,7 +56,7 @@ void sendInt(int sendMe){
   myInt.number = sendMe;
   for (int i=0; i<2; i++)
   {
-    xbeeProSerial.write(myInt.bytes[i]);
+    // Send converted ints here
   }
   sentBytes += 2;
 }
@@ -78,24 +64,11 @@ void sendInt(int sendMe){
 // rounds out the 21 byte xbee pro transmission with "0" bytes to fill packet
 void finishSend(){
   for (int i=0; i<(21-sentBytes); i++){
-    xbeeProSerial.write(0);
-    //xbeeProSerial.print(' ');
+    // Send completed packet here
   }
 }
 
 void updateXbee(){ // This is disgusting
-  
-  // Key: (keep this up to date)
-  //
-  // T      reports back time remaining until cut.
-  // +##    adds time to cut timer 
-  // -##    subtracts time to cut timer
-  // A      reports remaining altitude until cut.
-  // A+##   adds altitude (m) to cut altitude
-  // A-##   subtracts altitude (m) to cut altitude
-  // C      releases cubes from PPOD
-  // D      sends data string
-  // M      Polo! just a ping command
 
   if((millis() - xbeeTimer) > xbeeRate){ 
     
@@ -119,42 +92,6 @@ void updateXbee(){ // This is disgusting
   }
  }
  Serial.println("message: " + xbeeMessage);
-}
-
-// Checks for packet request from central unit
-void updateXbeePro(){
-  if(xbeeProSerial.available()>0){
-    int byteCounter = 0;
-    byte variable[10];
-    byte index = 0;
-    while(xbeeProSerial.available() > 0)
-   {
-     byte b = xbeeProSerial.read();
-     variable[index] = b;
-     if(b==xbeeProRequest[index]){byteCounter++;}
-     index++;
-    }  
-    if(byteCounter==4){
-       updateOled("Data Requested from SatCom");
-       Serial.println("In loop");
-       digitalWrite(ppodLED,HIGH);
-      digitalWrite(xbeeLED,HIGH);
-      digitalWrite(fixLED,HIGH);
-      digitalWrite(sdLED,HIGH);
-       
-       sentBytes = 0;
-       sendAddress();
-       sendFloat(testFloat);
-       sendInt(testInt);
-       finishSend();
-
-       delay(1000);
-       digitalWrite(ppodLED,LOW);
-      digitalWrite(xbeeLED,LOW);
-      digitalWrite(fixLED,LOW);
-      digitalWrite(sdLED,LOW);
-    }
-  }
 }
 
 String interpretMessage( String myCommand ){

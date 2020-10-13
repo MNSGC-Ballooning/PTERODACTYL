@@ -178,7 +178,6 @@ void pressureToAltitude(){
 void updateData(){
   updateUblox();
   updateXbee();
-  updateXbeePro();
 
   if(millis() - dataTimerIMU > dataRateIMU){
     dataTimerIMU = millis();
