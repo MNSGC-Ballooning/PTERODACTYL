@@ -1,3 +1,6 @@
+// Contains all of the setup information and functions related to XBee communication. 
+// Students should not have to use or add any code here unless adding new radio commands
+
 #include <RelayXBee.h>
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
@@ -20,14 +23,8 @@ void xbeeSetup(){
   xbeeSerial.begin(XBEE_BAUD);
   xbee.init(xbeeChannel); // Need to make sure xbees on both ends have the same identifier. "AAAA"
   xbee.enterATmode();
-  if(rfd900==0){
-    xbee.atCommand("ATDL1");
-    xbee.atCommand("ATMY0");
-  }
-  else{
-    xbee.atCommand("ATDL0");
-    xbee.atCommand("ATMY1");
-  }
+  xbee.atCommand("ATDL0");
+  xbee.atCommand("ATMY1");
   xbee.exitATmode();
   Serial.println("Xbee initialized on channel: " + String(xbeeChannel) + "; ID: " + xbeeID);
   updateOled("Xbee\nChannel: " + String(xbeeChannel) + "\nID: " + xbeeID);
@@ -86,29 +83,6 @@ void finishSend(){
   }
 }
 
-void satComSetup(){
-  updateOled("Setting up Xbee Pro on Serial2");
-  delay(1000);
-  //char xbeeProChannel = 'A';
-  xbeeProSerial.begin(XBEE_PRO_BAUD); // RFD900 Baud
-  //xbeePro.init(xbeeProChannel); // Need to make sure xbees on both ends have the same identifier. "AAAA"
-
-  Serial.println("Xbee Pro initialized");
-  updateOled("Xbee\nPro\nInitialized");
-  delay(2000);
-}
-
-void rfd900Setup(){
-  digitalWrite(xbeeLED,HIGH);
-  Serial.print("Initializing Long Range Radio... ");
-  updateOled("Setting up RFD900 on Serial1");
-  rfd900Serial.begin(57600); // RFD900 Baud
-  delay(2000);
-  
-  Serial.println("Radio Initialized");
-  digitalWrite(xbeeLED,LOW);
-}
-
 void updateXbee(){ // This is disgusting
   
   // Key: (keep this up to date)
@@ -127,37 +101,15 @@ void updateXbee(){ // This is disgusting
     
     xbeeTimer = millis();
     
-    if(rfd900==0){rfd900Serial.println(xbeeID + "," + groundData + "!");}
-    
-    else {xbeeSerial.print(xbeeID + "," + groundData + "!");} 
+    xbeeSerial.print(xbeeID + "," + groundData + "!");
 
     digitalWrite(xbeeLED,HIGH);
     delay(80);
     digitalWrite(xbeeLED,LOW);
     xbeeMessage = "DATA STRING TRANSMITTED";
   }
-  
-  if (xbeeSerial.available() > 10 && rfd900==0) { // RELAY!!
-    groundCommand = xbeeSerial.readString();
-    xbeeSerial.flush();
-    rfd900Serial.println(groundCommand);
-    xbeeMessage = "RELAYED: " + groundCommand;
-    }
-    
-  if (rfd900==0 && rfd900Serial.available() > 0){
-    groundCommand = rfd900Serial.readStringUntil("\r\n");
-    Serial.println(groundCommand);
-    if(groundCommand.startsWith(xbeeID)){
-      groundCommand.remove(0,xbeeID.length()+1);
-      rfd900Serial.println(xbeeID + ", " + interpretMessage(groundCommand) + "!");
-      xbeeMessage = "COMMS RECEIVED: " + groundCommand;
-    }
-    else{
-      xbeeSerial.print(groundCommand);
-    }
-  }
 
- if (rfd900==1 && xbeeSerial.available() > 10){
+ if (xbeeSerial.available() > 10){
   groundCommand = xbeeSerial.readString();
   if(groundCommand.startsWith(xbeeID))
   {
@@ -207,48 +159,9 @@ void updateXbeePro(){
 
 String interpretMessage( String myCommand ){
     
-    if(myCommand.startsWith("TIME"))
-    {
-      xbeeMessage = String(cutTime-millis());
-    }
-    else if(myCommand.startsWith("+"))
-    {
-      myCommand.remove(0,1);
-      float timeAdded = myCommand.toFloat();
-      cutTime = cutTime + timeAdded;
-      xbeeMessage = "New cut time: " + String(cutTime);
-    }
-    else if(myCommand.startsWith("-"))
-    {
-      myCommand.remove(0,1);
-      float timeSubtracted = myCommand.toFloat();
-      cutTime = cutTime - timeSubtracted;
-      xbeeMessage = "New cut time: " + String(cutTime);
-    }
-    else if(myCommand.startsWith("ALT"))
+    if(myCommand.startsWith("ALT"))
     {
       xbeeMessage = "Altitude calculated from pressure: " + String(altitudeFt);
-    }
-    else if(myCommand.startsWith("A+"))
-    {
-      myCommand.remove(0,1);
-      float altitudeAdded = myCommand.toFloat();
-      cutAltitude = cutAltitude + altitudeAdded;
-      xbeeMessage = "New cut altitude: " + String(cutAltitude);
-    }
-    else if(myCommand.startsWith("A-"))
-    {
-      myCommand.remove(0,1);
-      float altitudeSubtracted = myCommand.toFloat();
-      cutAltitude = cutAltitude - altitudeSubtracted;
-      xbeeMessage = "New cut altitude: " + String(cutAltitude);
-    }
-    else if(myCommand.startsWith("CUT"))
-    {
-      if(smartRelease) xbee.send("Cubes deployed prior to command");
-      else{ smartRelease = true;
-            commandRelease = true;
-      }
     }
     else if(myCommand.startsWith("DATA"))
     {

@@ -1,10 +1,13 @@
+// Setup and code for all sensors mounted on PTERODACTYL board.
+// Students should add their own setup and update functions here and reference them from the main setup() and loop() functions in PTERODACTYL.ino
+// Students should not have to modify and of the existing code.
+
 #include <UbloxGPS.h>
 #include <TinyGPS++.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <SparkFunLSM9DS1.h>
 #include <OneWire.h>
-//#include <DallasTemperature.h>
 #include <MS5611.h>
 #include <SFE_MicroOLED.h>  // Include the SFE_MicroOLED library
 
@@ -13,9 +16,7 @@
 //The DC_JUMPER is the I2C Address Select jumper. Set to 1 if the jumper is open (Default), or set to 0 if it's closed.
 #define DC_JUMPER 1 
 
-#define pressureOnePin A13         // Data pin for the first honeywell pressure sensor -- PCB pin:
 #define thermIntPin A16
-#define thermExtPin A17
 #define ubloxSerial Serial3       // Serial communication lines for the ublox GPS -- PCB pins: Serial5
 
 MS5611 baro;
@@ -127,14 +128,6 @@ void updateMS() {
   msPressure = msPressure * 0.000145038;
 }
 
-void updatePressure() { // Output units: psi -- far from efficient, but works for our purpose
-  analogReadResolution(analogResolutionBits);
-  float rawPressure = analogRead(pressureOnePin);
-  float pressureVoltage = rawPressure*(3.3/analogResolutionVals);
-  float pressure = ((pressureVoltage - 0.33)*(15.0/2.66667));
-  pressureOnePSI = pressure;
-}
-
 void updateThermistor(){
   analogReadResolution(analogResolutionBits);
   adcVal = analogRead(thermIntPin);
@@ -144,14 +137,6 @@ void updateThermistor(){
   currentTempC = T-273.15; // converting to celcius
   currentTempF = currentTempC*9/5+32;
   thermistorInt = currentTempF;
-
-  adcVal = analogRead(thermExtPin);
-  logR = log(((adcMax/adcVal)-1)*R1);
-  Tinv = A+B*logR+C*logR*logR*logR;
-  T = 1/Tinv;
-  currentTempC = T-273.15; // converting to celcius
-  currentTempF = currentTempC*9/5+32;
-  thermistorExt = currentTempF;
 }
 
 void updateUblox(){
@@ -166,16 +151,15 @@ void updateDataStrings(){
  groundData = String(ublox.getMonth()) + "/" + String(ublox.getDay()) + "/" + String(ublox.getYear()) + "," +
             String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ","
            + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(altitudeFtGPS, 4)
-           +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
-           + String(msTemperature) + ", " + String(pressureOnePSI) + ", " + String(msPressure) + ", " + String(millis()/1000.0) + ", ";
+           +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(msTemperature) + ", " 
+           + String(msPressure) + ", " + String(millis()/1000.0) + ", ";
 
  data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +
             String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," +  xbeeMessage;
 
- if(ppod==0) data = data + ", " + String(smartRelease);
  
-  updateOled(String(latitudeGPS) + "\n" + String(longitudeGPS) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(int(thermistorExt)) + " F\n" + String(msPressure,2) + " PSI");
+  updateOled(String(latitudeGPS) + "\n" + String(longitudeGPS) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(msPressure,2) + " PSI");
   if(ublox.getFixAge() > 2000) fix = false;
   else fix = true;
   logData(data);

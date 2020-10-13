@@ -1,3 +1,15 @@
+// A heavily modified version of the PTERODACTYL flight code for use by the Fall 2020 AEM 1301 class as a platform engine.
+// PTERODACTYL designed by and code written by Andrew Van Gerpen.
+// Modifications made by Paul Wehling.
+// Last updated 10/13/2020
+//
+// Students should write their own header to replace this one once their code is under development.
+
+
+// Main code block, contains setup(), loop(), and code to check the initial states of the slide switches and shorts
+//  as well as variable declarations and logical code.
+// Students will want to modify many of the functions here to add their own data logging and calls to new sensor functions.
+
 #define fixLED 26                 // LED to indicate GPS fix
 #define ppodLED 24
 #define xbeeLED 27                // LED to indicate xbee communication
@@ -28,16 +40,8 @@ int id3On = 1;
 int id4On = 1;
 int pullOn = 1;
 
-float cutTime = 70*60000.0; // x (minutes) * 60000;
-float cutAltitude = 10000; // 50,000 ft ASL cut!!
-bool smartRelease = false; // Releases the smart unit to deploy cubes
-int smartReleasePosition = 170; // the angle in degrees for smart release. Will vary based on smart unit
-int smartInitialPosition = 0; // the angle in degrees for smart initial position. Will vary based on smart unit
-bool smartReleaseTransmission = true; // This ensures only one message is relayed to the ground after release has occurred.
-String commandMessage; // Appends a message stating the radio deployed the cubes if that happens
-String proCommand;
-
-String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+// Students will want to modify header to include the new data they're logging.
+String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), msTemp(F), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -57,9 +61,7 @@ bool fix = false; // determines if the GPS has a lock
 
 ///////////////////// Sensor Global Variables /////////////////////////////
 
-float dallasOneF;
 float thermistorInt;
-float thermistorExt;
 float magnetometer[3]; // {x, y, z}
 float accelerometer[3]; // {x, y, z}
 float gyroscope[3]; // {x, y, z}
@@ -71,12 +73,10 @@ String data;
 String groundData;
 String IMUdata;
 
-String exclamation = "!"; // this needs to be at the end of every 
-bool commandRelease = false;
+String exclamation = "!"; // this needs to be at the end of every XBee message
 String groundCommand;
-String xbeeID = "UMN0";
+String xbeeID = "NULL";
 String xbeeProID = "AAA";
-bool xbeeAlternation = false; // this will allow the xbee to alternate between sending data to MOC SOC and data via MOC SOC to the ground
 unsigned long int xbeeTimer = 0;
 unsigned long int xbeeRate = 5000; // 10000 millis = 10 seconds
 String xbeeMessage; // This saves all xbee transmissions and appends them to the data string
@@ -98,9 +98,6 @@ void setup() {
   if(id2On==0)xbeeID="UMN2";
   if(id3On==0)xbeeID="UMN3";
   if(id4On==0)xbeeID="UMN4";
-  if(rfd900==0)xbeeID = "COMM";
-  if(ppod==0)xbeeID = "PPOD";
-  if(satCom==0) xbeeID = "SatC"; 
 
   Serial.print("starting OLED setup... ");
   oledSetup();
@@ -131,11 +128,8 @@ void setup() {
   Serial.println("ublox setup complete");
   
   pressureToAltitudeSetup();
-  if(ppod==0) ppodSetup();
-  if(rfd900==0) rfd900Setup();
   logData(header);
   if(pullOn==0) pullPin();
-  if(satCom==0) satComSetup(); 
 }
 
 void loop() {
@@ -151,7 +145,6 @@ void pressureToAltitudeSetup()
   float h1 = 36152.0;
   float h2 = 82345.0;
   float T1 = 59-.00356*h1;
-  float T2 = -70;
   float T3 = -205.05 + .00164*h2;
   pressureBoundary1 = (2116 * pow(((T1+459.7)/518.6),5.256));
   pressureBoundary2 = (473.1*exp(1.73-.000048*h2)); // does exp function work??
@@ -203,9 +196,7 @@ void updateData(){
     pressureToAltitude();
     updateThermistor();
     if(baroOn==1) updateMS(); //Not every payload has one
-    updatePressure();
     updateIMU();
-    updateSmart();
     updateDataStrings();
     xbeeMessage="";
   }        

@@ -1,3 +1,6 @@
+// Contains setup and code for SD logging.
+// Students should not have to add code here
+
 #include <SD.h>
 
 #define chipSelect BUILTIN_SDCARD //Should highlight if you have teensy 3.5/3.6/4.0 selected
