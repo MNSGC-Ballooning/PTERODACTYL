@@ -1,7 +1,7 @@
 // Contains setup and code for SD logging.
 // Students should not have to add code here
 
-#include <SD.h>
+#include <SD.h> //Should come automatically with Arduino, although you may have to disable the native library.
 
 #define chipSelect BUILTIN_SDCARD //Should highlight if you have teensy 3.5/3.6/4.0 selected
 

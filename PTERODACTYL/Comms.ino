@@ -2,7 +2,7 @@
 // Students should not have to use or add any code here unless adding new radio commands
 // Some functions for converting numbers to the proper binary elements have been kept in case they're needed fro the SatCom system
 
-#include <RelayXBee.h>
+#include <RelayXBee.h> //Library can be found at https://github.com/MNSGC-Ballooning/XBee
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
 

@@ -2,14 +2,14 @@
 // Students should add their own setup and update functions here and reference them from the main setup() and loop() functions in PTERODACTYL.ino
 // Students should not have to modify and of the existing code.
 
-#include <UbloxGPS.h>
-#include <TinyGPS++.h>
-#include <Wire.h>
-#include <SPI.h>
-#include <SparkFunLSM9DS1.h>
-#include <OneWire.h>
-#include <MS5611.h>
-#include <SFE_MicroOLED.h>  // Include the SFE_MicroOLED library
+#include <UbloxGPS.h> //Library can be found at https://github.com/MNSGC-Ballooning/FlightGPS
+#include <TinyGPS++.h>  //Library comes in the same download as UbloxGPS.h
+#include <Wire.h> //This should come automatically with Arduino
+#include <SPI.h>  //This should come automatically with Arduino
+#include <SparkFunLSM9DS1.h> //Library can be found at https://github.com/sparkfun/SparkFun_LSM9DS1_Arduino_Library
+#include <OneWire.h>  //This should come automatically with Arduino
+#include <MS5611.h> //Library can be found at https://github.com/Patrikpcm/Arduino-MS5611-Library
+#include <SFE_MicroOLED.h>  //Library can be found at https://github.com/sparkfun/SparkFun_Micro_OLED_Arduino_Library
 
 //The library assumes a reset pin is necessary. The Qwiic OLED has RST hard-wired, so pick an arbitrarty IO pin that is not being used
 #define PIN_RESET 9  
