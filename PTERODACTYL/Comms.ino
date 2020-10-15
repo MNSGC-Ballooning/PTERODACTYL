@@ -91,10 +91,6 @@ void updateXbee(){ // This is disgusting
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
   }
  }
- //if(xbeeMessage != "") {
- // Serial.println("message: " + xbeeMessage);
- // xbeeMessage = "";
- //}
 }
 
 String interpretMessage( String myCommand ){
