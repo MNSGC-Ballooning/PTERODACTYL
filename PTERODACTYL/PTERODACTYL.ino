@@ -41,7 +41,7 @@ int id4On = 1;
 int pullOn = 1;
 
 // Students will want to modify header to include the new data they're logging.
-String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), msTemp(F), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), msPressure(PSI), time since bootup (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -62,6 +62,7 @@ bool fix = false; // determines if the GPS has a lock
 ///////////////////// Sensor Global Variables /////////////////////////////
 
 float thermistorInt;
+float thermistorExt;
 float magnetometer[3]; // {x, y, z}
 float accelerometer[3]; // {x, y, z}
 float gyroscope[3]; // {x, y, z}
