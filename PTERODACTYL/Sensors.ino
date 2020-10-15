@@ -159,7 +159,7 @@ void updateDataStrings(){
             String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," +  xbeeMessage;
 
  
-  updateOled(String(latitudeGPS) + "\n" + String(longitudeGPS) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(msPressure,2) + " PSI");
+  updateOled(String(latitudeGPS,4) + "\n" + String(longitudeGPS,4) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(msPressure,2) + " PSI");
   if(ublox.getFixAge() > 2000) fix = false;
   else fix = true;
   logData(data);
