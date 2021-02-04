@@ -37,7 +37,7 @@ bool smartReleaseTransmission = true; // This ensures only one message is relaye
 String commandMessage; // Appends a message stating the radio deployed the cubes if that happens
 String proCommand;
 
-String header = "Date, Time, Sats, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+String header = "Date, Time, Millis, Sats, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;

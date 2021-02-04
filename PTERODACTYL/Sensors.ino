@@ -166,7 +166,8 @@ void updateDataStrings(){
 
  groundData = String(ublox.getMonth()) + "/" + String(ublox.getDay()) + "/" + String(ublox.getYear()) + ", " +
             String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ", "
-           + String(ublox.getSats()) + ", " + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(ublox.getAlt_feet(), 4)
+           + String(dataTimer) + ", " + String(ublox.getSats()) + ", " 
+           + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(ublox.getAlt_feet(), 4)
            +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
            + String(msTemperature) + ", " + String(pressureOnePSI) + ", " + String(msPressure) + ", " + String(millis()/1000.0) + ", ";
 
