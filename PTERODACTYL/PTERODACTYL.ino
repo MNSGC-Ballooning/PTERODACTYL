@@ -37,12 +37,12 @@ bool smartReleaseTransmission = true; // This ensures only one message is relaye
 String commandMessage; // Appends a message stating the radio deployed the cubes if that happens
 String proCommand;
 
-String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+String header = "Date, Time, Sats, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
-int dataRate = 1000; // 1000 millis = 1 second
-int dataRateIMU = 250; // 250 millis = .25 seconds
+int dataRate = 40; // 40 millis = 0.04 second = 25 Hz
+// int dataRateIMU = 250; // 250 millis = .25 seconds
 int analogResolutionBits = 14;
 int analogResolutionVals = pow(2,analogResolutionBits);
 float pressureBoundary1;
@@ -67,6 +67,7 @@ float gyroscope[3]; // {x, y, z}
 float altitudeFtGPS;
 float latitudeGPS;
 float longitudeGPS;
+int satsGPS;
 String data;
 String groundData;
 String IMUdata;
@@ -186,11 +187,12 @@ void updateData(){
   updateUblox();
   updateXbee();
   updateXbeePro();
+  updateIMU();
 
-  if(millis() - dataTimerIMU > dataRateIMU){
-    dataTimerIMU = millis();
-    updateIMU();
-  }
+//  if(millis() - dataTimerIMU > dataRateIMU){
+//    dataTimerIMU = millis();
+//    updateIMU();
+//  }
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
     if(fix == true){
@@ -204,7 +206,7 @@ void updateData(){
     updateThermistor();
     if(baroOn==1) updateMS(); //Not every payload has one
     updatePressure();
-    updateIMU();
+    //updateIMU();
     updateSmart();
     updateDataStrings();
     xbeeMessage="";
