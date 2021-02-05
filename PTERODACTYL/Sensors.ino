@@ -159,17 +159,16 @@ void updateUblox(){
 }
 
 void updateDataStrings(){
-//  altitudeFtGPS = ublox.getAlt_feet();
-//  latitudeGPS = ublox.getLat();
-//  longitudeGPS = ublox.getLon();
-//  satsGPS = ublox.getSats();
+  altitudeFtGPS = ublox.getAlt_feet();
+  latitudeGPS = ublox.getLat();
+  longitudeGPS = ublox.getLon();
+  satsGPS = ublox.getSats();
 
  groundData = String(ublox.getMonth()) + "/" + String(ublox.getDay()) + "/" + String(ublox.getYear()) + ", " +
-            String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ", "
-           + String(dataTimer) + ", " + String(ublox.getSats()) + ", " 
-           + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(ublox.getAlt_feet(), 4)
+           String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ", " + String(satsGPS) + ", " +
+           String(latitudeGPS, 4) + ", " + String(longitudeGPS, 4) + ", " + String(altitudeFtGPS, 4)
            +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
-           + String(msTemperature) + ", " + String(pressureOnePSI) + ", " + String(msPressure) + ", " + String(millis()/1000.0) + ", ";
+           + String(msTemperature) + ", " + String(pressureOnePSI) + ", " + String(msPressure) + ", " + String(dataTimer/1000.0, 3) + ", ";
 
  data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +

@@ -41,7 +41,7 @@ String header = "Date, Time, Millis, Sats, Lat, Lon, Alt(ft), AltEst(ft), intT(F
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
-int dataRate = 40; // 40 millis = 0.04 second = 25 Hz
+int dataRate = 100; // 100 millis = 0.1 second = 10 Hz
 // int dataRateIMU = 250; // 250 millis = .25 seconds
 int analogResolutionBits = 14;
 int analogResolutionVals = pow(2,analogResolutionBits);
@@ -184,7 +184,6 @@ void pressureToAltitude(){
 }
 
 void updateData(){
-  updateUblox();
   updateXbee();
   updateXbeePro();
   updateIMU();
@@ -195,6 +194,7 @@ void updateData(){
 //  }
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
+    updateUblox();
     if(fix == true){
       digitalWrite(fixLED,HIGH);
     }
