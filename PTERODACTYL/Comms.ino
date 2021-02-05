@@ -166,7 +166,7 @@ void updateXbee(){ // This is disgusting
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
   }
  }
- Serial.println("message: " + xbeeMessage);
+ // Serial.println("message: " + xbeeMessage);
 }
 
 // Checks for packet request from central unit

@@ -159,10 +159,6 @@ void updateUblox(){
 }
 
 void updateDataStrings(){
-  altitudeFtGPS = ublox.getAlt_feet();
-  latitudeGPS = ublox.getLat();
-  longitudeGPS = ublox.getLon();
-  satsGPS = ublox.getSats();
 
  groundData = String(ublox.getMonth()) + "/" + String(ublox.getDay()) + "/" + String(ublox.getYear()) + ", " +
            String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ", " + String(satsGPS) + ", " +
@@ -180,6 +176,13 @@ void updateDataStrings(){
   if(ublox.getFixAge() > 2000) fix = false;
   else fix = true;
   logData(data);
+}
+
+void updateGPSDataStrings() {
+  altitudeFtGPS = ublox.getAlt_feet();
+  latitudeGPS = ublox.getLat();
+  longitudeGPS = ublox.getLon();
+  satsGPS = ublox.getSats();
 }
 
 void pullPin(){

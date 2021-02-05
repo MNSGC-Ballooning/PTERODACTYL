@@ -39,10 +39,12 @@ String proCommand;
 
 String header = "Date, Time, Millis, Sats, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
-unsigned long int dataTimerIMU = 0;
+//unsigned long int dataTimerIMU = 0;
+unsigned long int dataTimerGPS = 0;
 unsigned long int ppodOffset = 0;
-int dataRate = 100; // 100 millis = 0.1 second = 10 Hz
+int dataRate = 125; // 100 millis = 0.1 second = 10 Hz
 // int dataRateIMU = 250; // 250 millis = .25 seconds
+int dataRateGPS = 1000;
 int analogResolutionBits = 14;
 int analogResolutionVals = pow(2,analogResolutionBits);
 float pressureBoundary1;
@@ -186,15 +188,21 @@ void pressureToAltitude(){
 void updateData(){
   updateXbee();
   updateXbeePro();
-  updateIMU();
+  updateUblox();
 
 //  if(millis() - dataTimerIMU > dataRateIMU){
 //    dataTimerIMU = millis();
 //    updateIMU();
 //  }
+
+  if(millis() - dataTimerGPS > dataRateGPS){
+    dataTimerGPS = millis();
+    updateGPSDataStrings();
+  }
+
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
-    updateUblox();
+    updateIMU();
     if(fix == true){
       digitalWrite(fixLED,HIGH);
     }
