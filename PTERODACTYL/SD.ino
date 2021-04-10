@@ -8,6 +8,10 @@ char filename[] = "SDCARD00.csv";
 
 bool sdActive = false;
 
+///////// Functions ////////////
+// void sdSetup()
+// logData(String Data)
+
 void sdSetup(){
   pinMode(chipSelect,OUTPUT);
   if(!SD.begin(chipSelect)){

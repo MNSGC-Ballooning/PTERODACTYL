@@ -1,19 +1,16 @@
-#include <UbloxGPS.h>
-#include <TinyGPS++.h>
+#include <UbloxGPS.h> //https://github.com/MNSGC-Ballooning/FlightGPS/
+#include <TinyGPS++.h> // https://github.com/mikalhart/TinyGPSPlus
 #include <Wire.h>
 #include <SPI.h>
-#include <SparkFunLSM9DS1.h>
+#include <SparkFunLSM9DS1.h> // https://github.com/sparkfun/SparkFun_LSM9DS1_Arduino_Library
 #include <OneWire.h>
-//#include <DallasTemperature.h>
-#include <MS5611.h>
-#include <SFE_MicroOLED.h>  // Include the SFE_MicroOLED library
+#include <MS5611.h> // https://github.com/jarzebski/Arduino-MS5611
+#include <SFE_MicroOLED.h>  // https://github.com/sparkfun/SparkFun_Micro_OLED_Arduino_Library
 
-//The library assumes a reset pin is necessary. The Qwiic OLED has RST hard-wired, so pick an arbitrarty IO pin that is not being used
+// Values for OLED library
 #define PIN_RESET 9  
-//The DC_JUMPER is the I2C Address Select jumper. Set to 1 if the jumper is open (Default), or set to 0 if it's closed.
 #define DC_JUMPER 1 
 
-#define pressureOnePin A13         // Data pin for the first honeywell pressure sensor -- PCB pin:
 #define thermIntPin A16
 #define thermExtPin A17
 #define ubloxSerial Serial3       // Serial communication lines for the ublox GPS -- PCB pins: Serial5
@@ -24,11 +21,11 @@ LSM9DS1 imu;
 UbloxGPS ublox(&ubloxSerial);
 
 /////////////// Thermistor constants //////////////////////
-
+int analogResolutionBits = 14;
 float adcMax = pow(2,analogResolutionBits)-1.0; // The maximum adc value given to the thermistor
-float A = 0.001125308852122;
+float A = 0.001125308852122; // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
 float B = 0.000234711863267;
-float C = 0.000000085663516; // A, B, and C are constants used for a 10k resistor and 10k thermistor for the steinhart-hart equation
+float C = 0.000000085663516; 
 float R1 = 10000; // 10k Ω resistor
 float Tinv;
 float adcVal;
@@ -36,6 +33,20 @@ float logR;
 float T; // these three variables are used for the calculation from adc value to temperature
 float currentTempC; // The current temperature in Celcius
 float currentTempF; // The current temperature in Fahrenheit
+
+// Functions
+// void ubloxSetup()
+// void imuSetup()
+// void updateIMU()
+// void oledSetup()
+// void updateOled(String disp)
+// void msSetup()
+// void updateMS()
+// void updatePressure()
+// void updateThermistor()
+// void updateUblox()
+// void updateDataStrings()
+// void pullPin()
 
 void ubloxSetup(){
   ubloxSerial.begin(UBLOX_BAUD);
@@ -50,7 +61,7 @@ void ubloxSetup(){
     if (i==50){
       Serial.println("Failed to set to air mode.");
       updateOled("Failed to set GPS Air Mode");
-      delay(5000);
+      delay(3000);
     }
   }
   updateOled("GPS init\ncomplete!");
@@ -61,7 +72,7 @@ void imuSetup(){
   Wire.begin();
   if(!imu.begin()){
     Serial.println("Failed to communicate with LSM9DS1.");
-    updateOled("IMU\nOffline.");
+    updateOled("IMU\nOffline."); // random placement of '\n' in OLED strings is to prevent line breaks
     delay(5000);
   }
   else{
@@ -70,6 +81,7 @@ void imuSetup(){
   }
 }
 
+// Update Sparkfun 9DOF IMU
 void updateIMU(){
   if( imu.gyroAvailable() ) imu.readGyro();
   if( imu.accelAvailable() ) imu.readAccel();
@@ -86,12 +98,12 @@ void updateIMU(){
   gyroscope[2] = imu.calcGyro(imu.gz);
 }
 
+// Set up MicroOLED display
 void oledSetup(){
   Wire.begin();
   oled.begin();    // Initialize the OLED
   oled.clear(ALL); // Clear the display's internal memory
   oled.display();  // Display what's in the buffer (splashscreen)
-  //delay(1000);     // Delay 1000 ms
   oled.clear(PAGE); // Clear the buffer.
 
   randomSeed(analogRead(A0) + analogRead(A1));
@@ -99,6 +111,7 @@ void oledSetup(){
   updateOled("Initializing...");
 }
 
+// take in string to display on the MicroOLED
 void updateOled(String disp){
   oled.clear(PAGE);
   oled.setFontType(0);
@@ -107,32 +120,21 @@ void updateOled(String disp){
   oled.display();
 }
 
+// setup MS5611 pressure sensor
 void msSetup() {
-  //updateOled("initializing\nbaro...");
   while(!baro.begin()){
     updateOled("baro init failed!");
   }
-  /*if(!baro.begin()){
-    Serial.println("MS5611 Altimeter not active");
-    updateOled("digital baro not active");
-  }*/
   updateOled("baro init\ncomplete!");
-  delay(1000);
+  delay(1000); // for display purposes
 }
 
+// update MS5611 pressure sensor
 void updateMS() {
   msTemperature = baro.readTemperature();
-  msTemperature = msTemperature*(9.0/5.0) + 32.0;
+  msTemperature = msTemperature*(9.0/5.0) + 32.0; // Celcius to Fahrenheit
   msPressure = baro.readPressure(); 
-  msPressure = msPressure * 0.000145038;
-}
-
-void updatePressure() { // Output units: psi -- far from efficient, but works for our purpose
-  analogReadResolution(analogResolutionBits);
-  float rawPressure = analogRead(pressureOnePin);
-  float pressureVoltage = rawPressure*(3.3/analogResolutionVals);
-  float pressure = ((pressureVoltage - 0.33)*(15.0/2.66667));
-  pressureOnePSI = pressure;
+  msPressure = msPressure * 0.000145038; //mbar to PSI (i think)
 }
 
 void updateThermistor(){
@@ -158,22 +160,24 @@ void updateUblox(){
   ublox.update();
 }
 
+
 void updateDataStrings(){
   altitudeFtGPS = ublox.getAlt_feet();
   latitudeGPS = ublox.getLat();
   longitudeGPS = ublox.getLon();
 
- groundData = String(ublox.getMonth()) + "/" + String(ublox.getDay()) + "/" + String(ublox.getYear()) + "," +
-            String(ublox.getHour()-5) + ":" + String(ublox.getMinute()) + ":" + String(ublox.getSecond()) + ","
+  groundData = String(ublox.getYear()) + "," + String(ublox.getMonth()) + "," + String(ublox.getDay()) + "," +
+            String(ublox.getHour()-5) + "," + String(ublox.getMinute()) + "," + String(ublox.getSecond()) + ","
            + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(altitudeFtGPS, 4)
            +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
-           + String(msTemperature) + ", " + String(pressureOnePSI) + ", " + String(msPressure) + ", " + String(millis()/1000.0) + ", ";
+           + String(msTemperature) + ", " + String(msPressure) + "," + String(0) + "," + String(0);
 
- data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
+  data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +
             String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," +  xbeeMessage;
 
- if(ppod==0) data = data + ", " + String(smartRelease);
+  if(ppod==0) data = data + ", " + String(smartRelease);
+  lineNumber +=1;
  
   updateOled(String(latitudeGPS) + "\n" + String(longitudeGPS) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(int(thermistorExt)) + " F\n" + String(msPressure,2) + " PSI");
   if(ublox.getFixAge() > 2000) fix = false;
@@ -199,21 +203,4 @@ void pullPin(){
   digitalWrite(xbeeLED,LOW);
   digitalWrite(sdLED,LOW);
   delay(2000);
-}
-
-void ledGlissando() {
-  digitalWrite(fixLED,HIGH);
-  delay(50);
-  digitalWrite(ppodLED,HIGH);
-  delay(50);
-  digitalWrite(fixLED,LOW);
-  digitalWrite(xbeeLED,HIGH);
-  delay(50);
-  digitalWrite(ppodLED,LOW);
-  digitalWrite(sdLED,HIGH);
-  delay(50);
-  digitalWrite(xbeeLED,LOW);
-  delay(50);
-  digitalWrite(sdLED,LOW);
-  delay(150);
 }
