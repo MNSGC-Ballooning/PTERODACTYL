@@ -1,10 +1,10 @@
-#define fixLED 26                 // LED to indicate GPS fix
-#define ppodLED 24
-#define xbeeLED 27                // LED to indicate xbee communication
-#define sdLED 25
+#define fixLED 26                 // LED pin to indicate GPS fix
+#define ppodLED 24                // LED pin to indicate PPOD status
+#define xbeeLED 27                // LED pin to indicate xbee communication
+#define sdLED 25                  // LED pin to indicate sd status
 #define serialBAUD 9600           // when using arduino serial monitor, make sure baud rate is set to this same value
 
-#define ppodSwitchPin 30
+#define ppodSwitchPin 30          
 #define satSwitchPin 31
 #define commsSwitchPin 32
 #define setAltSwitch 28
@@ -21,7 +21,6 @@ int ppod = 1; // set true if you want this thing to operate as ppod flight compu
 int satCom = 1; // set true if you want to activate flight by waving a magnet over the IMU
 int setAltVal = 1;
 int altVal = 1;
-int baroOn = 1;
 int id1On = 1;
 int id2On = 1;
 int id3On = 1;
@@ -36,19 +35,17 @@ int smartInitialPosition = 0; // the angle in degrees for smart initial position
 bool smartReleaseTransmission = true; // This ensures only one message is relayed to the ground after release has occurred.
 String commandMessage; // Appends a message stating the radio deployed the cubes if that happens
 String proCommand;
+String satComPacket;
+int lineNumber = 0;
 
 String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
 int dataRate = 1000; // 1000 millis = 1 second
-int dataRateIMU = 250; // 250 millis = .25 seconds
-int analogResolutionBits = 14;
-int analogResolutionVals = pow(2,analogResolutionBits);
 float pressureBoundary1;
 float pressureBoundary2;
 float pressureBoundary3;
-float pressureOnePSI;
 float msPressure = -1.0;
 float msTemperature = -1.0;
 float altitudeFt = -1.0;
@@ -81,6 +78,13 @@ unsigned long int xbeeTimer = 0;
 unsigned long int xbeeRate = 5000; // 10000 millis = 10 seconds
 String xbeeMessage; // This saves all xbee transmissions and appends them to the data string
 
+int group0packet[] = {0,0,0,0,0}; // Each group gets 5 integer values (10 bytes)
+int group1packet[] = {0,0,0,0,0}; // Each group gets 5 integer values (10 bytes)
+byte statusByte;
+byte IDByte = 0xbb;
+boolean statusArr[] = {0,0,0,0,0,0,0,0};
+int statusInt=0;
+
 void setup() {
   
   Serial.begin(serialBAUD); //define baud rate in variable decleration above
@@ -92,7 +96,7 @@ void setup() {
   pinMode(13,OUTPUT);
   pinMode(setAltSwitch, INPUT_PULLUP);
   pinMode(altSwitch, INPUT_PULLUP);
-  checkSwitches(); // slide and button switch statuss
+  checkSwitches(); // slide and button switch status
 
   if(id1On==0)xbeeID="UMN1";
   if(id2On==0)xbeeID="UMN2";
@@ -100,7 +104,9 @@ void setup() {
   if(id4On==0)xbeeID="UMN4";
   if(rfd900==0)xbeeID = "COMM";
   if(ppod==0)xbeeID = "PPOD";
-  if(satCom==0) xbeeID = "SatC"; 
+  if(satCom==0 && rfd900==0) xbeeID = "SATC"; 
+
+  if(xbeeID!="UMN0")IDByte = 0xdd;
 
   Serial.print("starting OLED setup... ");
   oledSetup();
@@ -112,10 +118,7 @@ void setup() {
   Serial.println("IMU setup complete");
 
   Serial.print("starting Altimeter setup... ");
-  if(baroOn==1)msSetup();
-  else{ updateOled("MS5611\nOffline.");
-    delay(2000);
-  }
+  msSetup();
   Serial.println("Altimeter setup complete");
 
   Serial.print("starting SD setup... ");
@@ -132,20 +135,21 @@ void setup() {
   
   pressureToAltitudeSetup();
   if(ppod==0) ppodSetup();
-  if(rfd900==0) rfd900Setup();
+  if(rfd900==0 && satCom==1) rfd900Setup();
   logData(header);
   if(pullOn==0) pullPin();
-  if(satCom==0) satComSetup(); 
+  if(satCom==0 && rfd900==0) satComSetup(); 
+
+  Serial.println("rfd900:"+ String(rfd900) +"," + "satCom:"+ String(satCom));
 }
 
 void loop() {
   updateData(); 
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////// Functions  ////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////
+////////////// Functions ///////////////
 
+// Pressure to altitude function setup
 void pressureToAltitudeSetup()
 {
   float h1 = 36152.0;
@@ -159,11 +163,9 @@ void pressureToAltitudeSetup()
 }
 
 void pressureToAltitude(){
-  //float pressurePSF = (pressureOnePSI*144);
   float pressurePSF = (msPressure*144);
   
   float altFt = -100.0;
-  //UNCOMMENT WHEN RELIABLE PRESSURE SENSORS ARE ON BOARD
   if (pressurePSF > pressureBoundary1)// altitude is less than 36,152 ft ASL
   {
     altFt = (459.7+59-518.6*pow((pressurePSF/2116),(1/5.256)))/.00356;
@@ -175,11 +177,8 @@ void pressureToAltitude(){
   else if (pressurePSF <= pressureBoundary2)// altitude is greater than 82,345 ft ASL
   {
     altFt = (459.7-205.5-389.98*pow((pressurePSF/51.97),(1/-11.388)))/-.00164;
-  }
-  else{altFt = -1.0;}
-  
+  } 
   altitudeFt = altFt;
-  if(baroOn==0)altitudeFt = -1.0;
 }
 
 void updateData(){
@@ -187,23 +186,20 @@ void updateData(){
   updateXbee();
   updateXbeePro();
 
-  if(millis() - dataTimerIMU > dataRateIMU){
-    dataTimerIMU = millis();
-    updateIMU();
-  }
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
-    if(fix == true){
-      digitalWrite(fixLED,HIGH);
-    }
+    
+    if(fix == true){digitalWrite(fixLED,HIGH);}
+    
     digitalWrite(sdLED,HIGH);
     delay(30);
     digitalWrite(sdLED,LOW);
     digitalWrite(fixLED,LOW);
+
+    if(satCom==0)updateStatus();
     pressureToAltitude();
     updateThermistor();
-    if(baroOn==1) updateMS(); //Not every payload has one
-    updatePressure();
+    updateMS();    
     updateIMU();
     updateSmart();
     updateDataStrings();
@@ -211,11 +207,11 @@ void updateData(){
   }        
 }
 
+// Initialize Pullup/Pulldown pins for switches
 void checkSwitches(){
   pinMode(ppodSwitchPin, INPUT_PULLUP);
   pinMode(satSwitchPin, INPUT_PULLUP);
   pinMode(commsSwitchPin, INPUT_PULLUP);
-  pinMode(baroSwitchPin, INPUT_PULLUP);
   pinMode(id1SwitchPin, INPUT_PULLUP);
   pinMode(id2SwitchPin, INPUT_PULLUP);
   pinMode(id3SwitchPin, INPUT_PULLUP);
@@ -225,7 +221,6 @@ void checkSwitches(){
   ppod = digitalRead(ppodSwitchPin);
   rfd900 = digitalRead(commsSwitchPin);
   satCom = digitalRead(satSwitchPin);
-  baroOn = digitalRead(baroSwitchPin);
   id1On = digitalRead(id1SwitchPin);
   id2On = digitalRead(id2SwitchPin);
   id3On = digitalRead(id3SwitchPin);

@@ -1,54 +1,52 @@
-#include <RelayXBee.h>
+#include <RelayXBee.h>            // Relay Xbee - Download at https://github.com/MNSGC-Ballooning/XBee 
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
 #define rfd900Serial Serial1   //this line should all be commented if you aren't using an RFD900
 #define xbeeProSerial Serial2
 #define XBEE_PRO_BAUD 38400
+#define RELAY_BAUD 57600
 
-byte xbeeProRequest[] = {0x41, 0x41, 0x41, 0x2E}; // That is, {'A','A','A','â'}
-
-RelayXBee xbee = RelayXBee(&xbeeSerial, xbeeID);
-RelayXBee xbeePro = RelayXBee(&xbeeProSerial, xbeeProID);
-
-float testFloat = 128.0;
-int testInt = 1280;
+byte xbeeProRequest[] = {0x41, 0x41, 0x41, 0x2E}; // That is, {'A','A','A','.'}
 int sentBytes = 0;
 
+RelayXBee xbee = RelayXBee(&xbeeSerial, xbeeID);            // Declare xbee instance
+RelayXBee xbeePro = RelayXBee(&xbeeProSerial, xbeeProID);   // This is only relevant when Stratostar Comms is being used
+
 void xbeeSetup(){
-  updateOled("Xbee Radio\nInit...");
-  char xbeeChannel = 'A';
-  xbeeSerial.begin(XBEE_BAUD);
-  xbee.init(xbeeChannel); // Need to make sure xbees on both ends have the same identifier. "AAAA"
-  xbee.enterATmode();
-  if(rfd900==0){
-    xbee.atCommand("ATDL1");
+  updateOled("Xbee Radio\nInit..."); 
+  char xbeeChannel = 'A'; //
+  xbeeSerial.begin(9600);   // Xbee Baud rate is 9600
+  xbee.init(xbeeChannel);   // Need to make sure xbees on both ends have the same identifier. This sets "AAAA"
+  xbee.enterATmode();       // Allows the setting of xbee parameters
+  if(rfd900==0){            // If the board has an onboard RFD radio for radio relay, set the xbee to receive all other xbee transmissions
+    xbee.atCommand("ATDL1");  
     xbee.atCommand("ATMY0");
   }
-  else{
+  else{                     // If the board does not have an onboard long range radio, transmit so radio relay board can listen
     xbee.atCommand("ATDL0");
     xbee.atCommand("ATMY1");
   }
   xbee.exitATmode();
-  Serial.println("Xbee initialized on channel: " + String(xbeeChannel) + "; ID: " + xbeeID);
-  updateOled("Xbee\nChannel: " + String(xbeeChannel) + "\nID: " + xbeeID);
-  delay(2000);
+  Serial.println("Xbee initialized on channel: " + String(xbeeChannel) + "; ID: " + xbeeID);  //Print to serial monitor for debugging
+  updateOled("Xbee\nChannel: " + String(xbeeChannel) + "\nID: " + xbeeID);                    //Show init is finished on the OLED
+  delay(2000);                                                                                //Delay two seconds so the OLED displays xbee settings
 }
 
-// Function required to convert floats into 4 byte hex vals
+// Function required to convert floats into 4 byte hex vals (Only critical for SatCom transmissions)
 typedef union
 {
   float number;
   uint8_t bytes[4];
 }FLOATUNION_t;
 
-// Function required to convert ints into 2 byte hex vals
+// Function required to convert ints into 2 byte hex vals (Only critical for SatCom transmissions)
 typedef union
 {
   int number;
   uint8_t bytes[2];
 }INTUNION_t;
 
-// function that takes in a float value and prints it to the xbeePro serial as 4 bytes.
+// function that takes in a float value and prints it to the xbeePro serial as 4 bytes. (Only critical for SatCom transmissions)
 void sendAddress(){
   byte address[] = {0x41, 0x41, 0x41};
   for (int i=0; i<3; i++)
@@ -57,7 +55,7 @@ void sendAddress(){
   }
 }
 
-void sendFloat(float sendMe){
+void sendFloat(float sendMe){ //(Only critical for SatCom transmissions)
   FLOATUNION_t myFloat;
   myFloat.number = sendMe;
   for (int i=0; i<4; i++)
@@ -71,7 +69,7 @@ void sendFloat(float sendMe){
 void sendInt(int sendMe){
   INTUNION_t myInt;
   myInt.number = sendMe;
-  for (int i=0; i<2; i++)
+  for (int i=1; i>=0; i--)
   {
     xbeeProSerial.write(myInt.bytes[i]);
   }
@@ -82,16 +80,14 @@ void sendInt(int sendMe){
 void finishSend(){
   for (int i=0; i<(21-sentBytes); i++){
     xbeeProSerial.write(0);
-    //xbeeProSerial.print(' ');
   }
 }
 
 void satComSetup(){
   updateOled("Setting up Xbee Pro on Serial2");
   delay(1000);
-  //char xbeeProChannel = 'A';
+  
   xbeeProSerial.begin(XBEE_PRO_BAUD); // RFD900 Baud
-  //xbeePro.init(xbeeProChannel); // Need to make sure xbees on both ends have the same identifier. "AAAA"
 
   Serial.println("Xbee Pro initialized");
   updateOled("Xbee\nPro\nInitialized");
@@ -102,7 +98,7 @@ void rfd900Setup(){
   digitalWrite(xbeeLED,HIGH);
   Serial.print("Initializing Long Range Radio... ");
   updateOled("Setting up RFD900 on Serial1");
-  rfd900Serial.begin(57600); // RFD900 Baud
+  rfd900Serial.begin(RELAY_BAUD); // RFD900 Baud
   delay(2000);
   
   Serial.println("Radio Initialized");
@@ -123,28 +119,16 @@ void updateXbee(){ // This is disgusting
   // D      sends data string
   // M      Polo! just a ping command
 
-  if((millis() - xbeeTimer) > xbeeRate){ 
-    
-    xbeeTimer = millis();
-    
-    if(rfd900==0){rfd900Serial.println(xbeeID + "," + groundData + "!");}
-    
-    else {xbeeSerial.print(xbeeID + "," + groundData + "!");} 
-
-    digitalWrite(xbeeLED,HIGH);
-    delay(80);
-    digitalWrite(xbeeLED,LOW);
-    xbeeMessage = "DATA STRING TRANSMITTED";
-  }
-  
-  if (xbeeSerial.available() > 10 && rfd900==0) { // RELAY!!
+  //RFD900 Comms Relaying incoming xbee data
+  if (xbeeSerial.available() > 10 && satCom==1 && rfd900==0) { // RELAY!!
     groundCommand = xbeeSerial.readString();
     xbeeSerial.flush();
     rfd900Serial.println(groundCommand);
     xbeeMessage = "RELAYED: " + groundCommand;
     }
-    
-  if (rfd900==0 && rfd900Serial.available() > 0){
+
+  // RFD Comms Realying or interpreting incoming RFD900 requests
+  if (rfd900==0 && satCom==1 && rfd900Serial.available() > 0){
     groundCommand = rfd900Serial.readStringUntil("\r\n");
     Serial.println(groundCommand);
     if(groundCommand.startsWith(xbeeID)){
@@ -157,7 +141,8 @@ void updateXbee(){ // This is disgusting
     }
   }
 
- if (rfd900==1 && xbeeSerial.available() > 10){
+ // Payload receiving a message via rfd900 Comms unit
+ if (rfd900==1 && satCom==1 && xbeeSerial.available() > 10){
   groundCommand = xbeeSerial.readString();
   if(groundCommand.startsWith(xbeeID))
   {
@@ -166,12 +151,57 @@ void updateXbee(){ // This is disgusting
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
   }
  }
- Serial.println("message: " + xbeeMessage);
+ 
+ // 
+ if (rfd900==0 && satCom==0 && xbeeSerial.available() > 5){
+  groundCommand = xbeeSerial.readString();
+  digitalWrite(13,HIGH);
+  Serial.println(groundCommand);
+  if(groundCommand.startsWith("S,"))
+  {
+    int index;
+    groundCommand.remove(0,2);
+    index = groundCommand.indexOf(',');
+    int statusPacket = (groundCommand.substring(0,index)).toInt();
+    
+    for(int i=0; i<5; i++){
+      index = groundCommand.indexOf(',');
+      
+      if(statusPacket >= 48384) group1packet[i] = (groundCommand.substring(0,index)).toInt(); 
+      else{group0packet[i] = (groundCommand.substring(0,index)).toInt();} 
+      Serial.print(String(group0packet[i]) + ", ");
+      Serial.print(String(group1packet[i]) + ", ");
+      groundCommand.remove(0,index+1);
+    }
+    Serial.println(String(group0packet[0]));
+    digitalWrite(13,HIGH);
+  }
+ }
+ if((millis() - xbeeTimer) > xbeeRate){
+      
+    xbeeTimer = millis();
+
+    // Sending Comms Payload data
+    if(rfd900==0 && satCom==1){rfd900Serial.println(xbeeID + "," + groundData + "!");}
+    else if(rfd900==1 && satCom==0)
+    {
+      xbeeSerial.print(satComPacket);
+      Serial.println(satComPacket);
+    }
+    else {xbeeSerial.print(xbeeID + "," + groundData + "!");
+          Serial.print(xbeeID + "," + groundData + "!");} 
+
+    digitalWrite(xbeeLED,HIGH);
+    delay(80);
+    digitalWrite(xbeeLED,LOW);
+    xbeeMessage = "DATA STRING TRANSMITTED";
+  }
 }
 
 // Checks for packet request from central unit
 void updateXbeePro(){
   if(xbeeProSerial.available()>0){
+    digitalWrite(13,LOW);
     int byteCounter = 0;
     byte variable[10];
     byte index = 0;
@@ -184,26 +214,22 @@ void updateXbeePro(){
     }  
     if(byteCounter==4){
        updateOled("Data Requested from SatCom");
-       Serial.println("In loop");
-       digitalWrite(ppodLED,HIGH);
-      digitalWrite(xbeeLED,HIGH);
-      digitalWrite(fixLED,HIGH);
-      digitalWrite(sdLED,HIGH);
-       
        sentBytes = 0;
-       sendAddress();
-       sendFloat(testFloat);
-       sendInt(testInt);
-       finishSend();
-
-       delay(1000);
-       digitalWrite(ppodLED,LOW);
-      digitalWrite(xbeeLED,LOW);
-      digitalWrite(fixLED,LOW);
-      digitalWrite(sdLED,LOW);
+       sendAddress(); // 21 available bytes to send
+       
+       //sendFloat(testFloat); // takes 4 bytes
+       
+       for(int i=0; i<5; i++)
+        sendInt(group0packet[i]);
+       }
+       
+       for(int i=0; i<5; i++){
+        sendInt(group1packet[i]);
+       }
+       
+       finishSend(); // finishes 21 byte packet (sends 21-6 = 15 "0x00" bytes)
     }
   }
-}
 
 String interpretMessage( String myCommand ){
     
