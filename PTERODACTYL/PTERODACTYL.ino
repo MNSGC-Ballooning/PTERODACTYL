@@ -38,7 +38,7 @@ String proCommand;
 String satComPacket;
 int lineNumber = 0;
 
-String header = "Date, Time, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -106,8 +106,6 @@ void setup() {
   if(ppod==0)xbeeID = "PPOD";
   if(satCom==0 && rfd900==0) xbeeID = "SATC"; 
 
-  if(xbeeID!="UMN0")IDByte = 0xdd;
-
   Serial.print("starting OLED setup... ");
   oledSetup();
   Serial.println("OLED setup complete");
@@ -132,13 +130,15 @@ void setup() {
   Serial.print("starting ublox setup... ");
   ubloxSetup();
   Serial.println("ublox setup complete");
+
+  heaterSetup();
   
   pressureToAltitudeSetup();
   if(ppod==0) ppodSetup();
-  if(rfd900==0 && satCom==1) rfd900Setup();
+  if(rfd900==0) rfd900Setup();
   logData(header);
   if(pullOn==0) pullPin();
-  if(satCom==0 && rfd900==0) satComSetup(); 
+  if(satCom==0) satComSetup(); 
 
   Serial.println("rfd900:"+ String(rfd900) +"," + "satCom:"+ String(satCom));
 }
@@ -146,8 +146,6 @@ void setup() {
 void loop() {
   updateData(); 
 }
-
-////////////// Functions ///////////////
 
 // Pressure to altitude function setup
 void pressureToAltitudeSetup()
@@ -166,16 +164,13 @@ void pressureToAltitude(){
   float pressurePSF = (msPressure*144);
   
   float altFt = -100.0;
-  if (pressurePSF > pressureBoundary1)// altitude is less than 36,152 ft ASL
-  {
-    altFt = (459.7+59-518.6*pow((pressurePSF/2116),(1/5.256)))/.00356;
+  if (pressurePSF > pressureBoundary1){// altitude is less than 36,152 ft ASL
+     altFt = (459.7+59-518.6*pow((pressurePSF/2116),(1/5.256)))/.00356;
   }
-  else if (pressurePSF <= pressureBoundary1 && pressurePSF > pressureBoundary2) // altitude is between 36,152 and 82,345 ft ASL
-  {
+  else if (pressurePSF <= pressureBoundary1 && pressurePSF > pressureBoundary2){ // altitude is between 36,152 and 82,345 ft ASL
     altFt = (1.73-log(pressurePSF/473.1))/.000048;
   }
-  else if (pressurePSF <= pressureBoundary2)// altitude is greater than 82,345 ft ASL
-  {
+  else if (pressurePSF <= pressureBoundary2){// altitude is greater than 82,345 ft ASL
     altFt = (459.7-205.5-389.98*pow((pressurePSF/51.97),(1/-11.388)))/-.00164;
   } 
   altitudeFt = altFt;
@@ -196,13 +191,13 @@ void updateData(){
     digitalWrite(sdLED,LOW);
     digitalWrite(fixLED,LOW);
 
-    if(satCom==0)updateStatus();
     pressureToAltitude();
     updateThermistor();
     updateMS();    
     updateIMU();
     updateSmart();
     updateDataStrings();
+    setHeaterState();
     xbeeMessage="";
   }        
 }

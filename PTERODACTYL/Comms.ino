@@ -8,6 +8,7 @@
 
 byte xbeeProRequest[] = {0x41, 0x41, 0x41, 0x2E}; // That is, {'A','A','A','.'}
 int sentBytes = 0;
+byte dataID = 0x00;
 
 RelayXBee xbee = RelayXBee(&xbeeSerial, xbeeID);            // Declare xbee instance
 RelayXBee xbeePro = RelayXBee(&xbeeProSerial, xbeeProID);   // This is only relevant when Stratostar Comms is being used
@@ -49,8 +50,8 @@ typedef union
 // function that takes in a float value and prints it to the xbeePro serial as 4 bytes. (Only critical for SatCom transmissions)
 void sendAddress(){
   byte address[] = {0x41, 0x41, 0x41};
-  for (int i=0; i<3; i++)
-  {
+  
+  for (int i=0; i<3; i++){
     xbeeProSerial.write(address[i]);
   }
 }
@@ -58,8 +59,7 @@ void sendAddress(){
 void sendFloat(float sendMe){ //(Only critical for SatCom transmissions)
   FLOATUNION_t myFloat;
   myFloat.number = sendMe;
-  for (int i=0; i<4; i++)
-  {
+  for (int i=0; i<4; i++){
     xbeeProSerial.write(myFloat.bytes[i]);
   }
   sentBytes += 4;
@@ -69,11 +69,15 @@ void sendFloat(float sendMe){ //(Only critical for SatCom transmissions)
 void sendInt(int sendMe){
   INTUNION_t myInt;
   myInt.number = sendMe;
-  for (int i=1; i>=0; i--)
-  {
+  for (int i=1; i>=0; i--){
     xbeeProSerial.write(myInt.bytes[i]);
   }
   sentBytes += 2;
+}
+
+void sendByte(byte sendMe){
+  xbeeProSerial.write(sendMe);
+  sentBytes += 1;
 }
 
 // rounds out the 21 byte xbee pro transmission with "0" bytes to fill packet
@@ -120,7 +124,7 @@ void updateXbee(){ // This is disgusting
   // M      Polo! just a ping command
 
   //RFD900 Comms Relaying incoming xbee data
-  if (xbeeSerial.available() > 10 && satCom==1 && rfd900==0) { // RELAY!!
+  if (xbeeSerial.available() > 10 && rfd900==0) { // RELAY!!
     groundCommand = xbeeSerial.readString();
     xbeeSerial.flush();
     rfd900Serial.println(groundCommand);
@@ -128,7 +132,7 @@ void updateXbee(){ // This is disgusting
     }
 
   // RFD Comms Realying or interpreting incoming RFD900 requests
-  if (rfd900==0 && satCom==1 && rfd900Serial.available() > 0){
+  if (rfd900==0 && rfd900Serial.available() > 0){
     groundCommand = rfd900Serial.readStringUntil("\r\n");
     Serial.println(groundCommand);
     if(groundCommand.startsWith(xbeeID)){
@@ -151,46 +155,19 @@ void updateXbee(){ // This is disgusting
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
   }
  }
- 
- // 
- if (rfd900==0 && satCom==0 && xbeeSerial.available() > 5){
-  groundCommand = xbeeSerial.readString();
-  digitalWrite(13,HIGH);
-  Serial.println(groundCommand);
-  if(groundCommand.startsWith("S,"))
-  {
-    int index;
-    groundCommand.remove(0,2);
-    index = groundCommand.indexOf(',');
-    int statusPacket = (groundCommand.substring(0,index)).toInt();
-    
-    for(int i=0; i<5; i++){
-      index = groundCommand.indexOf(',');
-      
-      if(statusPacket >= 48384) group1packet[i] = (groundCommand.substring(0,index)).toInt(); 
-      else{group0packet[i] = (groundCommand.substring(0,index)).toInt();} 
-      Serial.print(String(group0packet[i]) + ", ");
-      Serial.print(String(group1packet[i]) + ", ");
-      groundCommand.remove(0,index+1);
-    }
-    Serial.println(String(group0packet[0]));
-    digitalWrite(13,HIGH);
-  }
- }
+
  if((millis() - xbeeTimer) > xbeeRate){
       
     xbeeTimer = millis();
 
     // Sending Comms Payload data
-    if(rfd900==0 && satCom==1){rfd900Serial.println(xbeeID + "," + groundData + "!");}
-    else if(rfd900==1 && satCom==0)
-    {
-      xbeeSerial.print(satComPacket);
-      Serial.println(satComPacket);
+    if(rfd900==0){
+      rfd900Serial.println(xbeeID + "," + groundData + "!");
     }
-    else {xbeeSerial.print(xbeeID + "," + groundData + "!");
-          Serial.print(xbeeID + "," + groundData + "!");} 
-
+    else {
+      xbeeSerial.print(xbeeID + "," + groundData + "!");
+      Serial.print(xbeeID + "," + groundData + "!");
+    } 
     digitalWrite(xbeeLED,HIGH);
     delay(80);
     digitalWrite(xbeeLED,LOW);
@@ -205,87 +182,98 @@ void updateXbeePro(){
     int byteCounter = 0;
     byte variable[10];
     byte index = 0;
-    while(xbeeProSerial.available() > 0)
-   {
-     byte b = xbeeProSerial.read();
-     variable[index] = b;
-     if(b==xbeeProRequest[index]){byteCounter++;}
-     index++;
-    }  
+    
+    while(xbeeProSerial.available() > 0){
+      byte b = xbeeProSerial.read();
+      variable[index] = b;
+      if(b==xbeeProRequest[index]){byteCounter++;}
+        index++;
+    }
+      
     if(byteCounter==4){
        updateOled("Data Requested from SatCom");
        sentBytes = 0;
        sendAddress(); // 21 available bytes to send
-       
-       //sendFloat(testFloat); // takes 4 bytes
-       
-       for(int i=0; i<5; i++)
-        sendInt(group0packet[i]);
+       updateOled("Sending via SatCom");
+       if(altitudeFtGPS >= 60000){
+          dataID = 0x01;
+          sendByte(dataID);
+          sendFloat(altitudeFtGPS);
+          sendFloat(altitudeFt);
+          sendInt(int(thermistorInt));
+          sendInt(int(thermistorExt));
+          sendInt(int(msTemperature));
+          sendFloat(msPressure);
        }
-       
-       for(int i=0; i<5; i++){
-        sendInt(group1packet[i]);
+       else if(altitudeFtGPS <= 10000){
+          dataID = 0x02;
+          sendByte(dataID);
+          sendFloat(latitudeGPS);
+          sendFloat(longitudeGPS);
+          sendFloat(altitudeFtGPS);
+          sendFloat(altitudeFt);
+          sendInt(int(thermistorExt));
        }
-       
+       else{
+          dataID = 0x03;
+          sendByte(dataID);
+          sendInt(int(thermistorInt));
+          sendInt(int(thermistorExt));
+          sendInt(int(msTemperature));
+          sendFloat(msPressure);
+          sendFloat(altitudeFtGPS);
+          sendFloat(altitudeFt);
+       }
        finishSend(); // finishes 21 byte packet (sends 21-6 = 15 "0x00" bytes)
     }
   }
+}
 
 String interpretMessage( String myCommand ){
     
-    if(myCommand.startsWith("TIME"))
-    {
+    if(myCommand.startsWith("TIME")){
       xbeeMessage = String(cutTime-millis());
     }
-    else if(myCommand.startsWith("+"))
-    {
+    else if(myCommand.startsWith("+")){
       myCommand.remove(0,1);
       float timeAdded = myCommand.toFloat();
       cutTime = cutTime + timeAdded;
       xbeeMessage = "New cut time: " + String(cutTime);
     }
-    else if(myCommand.startsWith("-"))
-    {
+    else if(myCommand.startsWith("-")){
       myCommand.remove(0,1);
       float timeSubtracted = myCommand.toFloat();
       cutTime = cutTime - timeSubtracted;
       xbeeMessage = "New cut time: " + String(cutTime);
     }
-    else if(myCommand.startsWith("ALT"))
-    {
+    else if(myCommand.startsWith("ALT")){
       xbeeMessage = "Altitude calculated from pressure: " + String(altitudeFt);
     }
-    else if(myCommand.startsWith("A+"))
-    {
+    else if(myCommand.startsWith("A+")){
       myCommand.remove(0,1);
       float altitudeAdded = myCommand.toFloat();
       cutAltitude = cutAltitude + altitudeAdded;
       xbeeMessage = "New cut altitude: " + String(cutAltitude);
     }
-    else if(myCommand.startsWith("A-"))
-    {
+    else if(myCommand.startsWith("A-")){
       myCommand.remove(0,1);
       float altitudeSubtracted = myCommand.toFloat();
       cutAltitude = cutAltitude - altitudeSubtracted;
       xbeeMessage = "New cut altitude: " + String(cutAltitude);
     }
-    else if(myCommand.startsWith("CUT"))
-    {
+    else if(myCommand.startsWith("CUT")){
       if(smartRelease) xbee.send("Cubes deployed prior to command");
       else{ smartRelease = true;
             commandRelease = true;
       }
     }
-    else if(myCommand.startsWith("DATA"))
-    {
+    else if(myCommand.startsWith("DATA")){
       xbeeMessage = data;
     }
-    else if(myCommand.startsWith("MARCO"))
-    {
+    else if(myCommand.startsWith("MARCO")){
       xbeeMessage = "POLO";
     }
-    else if(myCommand.startsWith("FREQ="))
-    {
+    else if(myCommand.startsWith("FREQ=")){
       myCommand.remove(0,5);
       xbeeMessage = "New Send Rate: " + myCommand;
       xbeeRate = myCommand.toInt();

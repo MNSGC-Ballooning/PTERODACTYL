@@ -11,9 +11,13 @@
 #define PIN_RESET 9  
 #define DC_JUMPER 1 
 
+#define thermBatPin A22 // new with Power Plane
 #define thermIntPin A16
 #define thermExtPin A17
 #define ubloxSerial Serial3       // Serial communication lines for the ublox GPS -- PCB pins: Serial5
+#define heaterSet 14
+#define heaterReset 15
+#define thermIntPin A22 // With analog pins you must specify using ‘A’ out front
 
 MS5611 baro;
 MicroOLED oled(PIN_RESET, DC_JUMPER);    // I2C declaration
@@ -34,19 +38,12 @@ float T; // these three variables are used for the calculation from adc value to
 float currentTempC; // The current temperature in Celcius
 float currentTempF; // The current temperature in Fahrenheit
 
-// Functions
-// void ubloxSetup()
-// void imuSetup()
-// void updateIMU()
-// void oledSetup()
-// void updateOled(String disp)
-// void msSetup()
-// void updateMS()
-// void updatePressure()
-// void updateThermistor()
-// void updateUblox()
-// void updateDataStrings()
-// void pullPin()
+float minimumTemp = 90; // Value is not important for now
+float tolerance = 1; // Again, not important for now
+float heaterTempValue; // This will be set by some sensor read function. Just pretend this variable always has the temperature
+float minimumTemperature = minimumTemp;
+float maximumTemperature = (minimumTemp + tolerance); // all of these are redudant, but allows for changing of maximum/min temp as opposed to having max temp be just = to tolerance
+
 
 void ubloxSetup(){
   ubloxSerial.begin(UBLOX_BAUD);
@@ -129,6 +126,11 @@ void msSetup() {
   delay(1000); // for display purposes
 }
 
+void heaterSetup(){
+  pinMode(heaterSet,OUTPUT);
+  pinMode(heaterReset,OUTPUT);
+}
+
 // update MS5611 pressure sensor
 void updateMS() {
   msTemperature = baro.readTemperature();
@@ -154,23 +156,18 @@ void updateThermistor(){
   currentTempC = T-273.15; // converting to celcius
   currentTempF = currentTempC*9/5+32;
   thermistorExt = currentTempF;
+
+  adcVal = analogRead(thermIntPin);
+  logR = log(((adcMax/adcVal)-1)*R1);
+  Tinv = A+B*logR+C*logR*logR*logR;
+  T = 1/Tinv;
+  currentTempC = T-273.15; // converting to celcius
+  currentTempF = currentTempC*9/5+32;
+  heaterTempValue = currentTempF;
 }
 
 void updateUblox(){
   ublox.update();
-}
-
-void updateStatus(){
-  //set your status bits statusArr[0] through statusArr[7] here
-  statusArr[0] = true;
-  statusArr[1] = true;
-  
-  for(int i=0; i<8; i++){ // increment through each index of arrayy[] 
-    if(statusArr[i]){ // only when the array index holds a 1 will we perform the next operation. This is because the byte default is 00000000, so we only need to bit shift if we have a 1
-      statusByte |= (1 << i); // bit shifting - moves 1s into the correct place in the byte. take the value 1 and move it over (7-i) places - ex/ '1' in index 5 (status 5). Add 1 and move it over 7-5=2 bits (00000100) 
-    }
-  }
-  statusInt = (IDByte<<8) | (statusByte);
 }
 
 void updateDataStrings(){
@@ -178,20 +175,17 @@ void updateDataStrings(){
   latitudeGPS = ublox.getLat();
   longitudeGPS = ublox.getLon();
 
- groundData = String(ublox.getYear()) + "," + String(ublox.getMonth()) + "," + String(ublox.getDay()) + "," +
+  groundData = String(ublox.getYear()) + "," + String(ublox.getMonth()) + "," + String(ublox.getDay()) + "," +
             String(ublox.getHour()-5) + "," + String(ublox.getMinute()) + "," + String(ublox.getSecond()) + ","
            + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(altitudeFtGPS, 4)
            +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
            + String(msTemperature) + ", " + String(msPressure) + "," + String(0) + "," + String(0);
 
- data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
+  data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +
             String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," +  xbeeMessage;
 
- if(ppod==0) data = data + ", " + String(smartRelease);
- if(satCom==0 && rfd900==1){
-  satComPacket = "S," + String(statusInt) + "," + String(lineNumber) + "," + String(ublox.getYear()) + "," + String(ublox.getMonth()) + "," + String(ublox.getDay()) + "," + String(ublox.getHour()) + ",";
- }
+  if(ppod==0) data = data + ", " + String(smartRelease);
   lineNumber +=1;
  
   updateOled(String(latitudeGPS) + "\n" + String(longitudeGPS) + "\n" + String(altitudeFtGPS,1) + "ft\nInt:" + String(int(thermistorInt)) + " F\nExt:" + String(int(thermistorExt)) + " F\n" + String(msPressure,2) + " PSI");
@@ -199,6 +193,20 @@ void updateDataStrings(){
   else fix = true;
   logData(data);
 }
+
+void setHeaterState(){
+ 
+  if(heaterTempValue <= minimumTemperature){ 
+    digitalWrite(heaterSet,HIGH);
+    delay(10); 
+    digitalWrite(heaterSet,LOW);
+  }
+  else if(heaterTempValue >= maximumTemperature){ 
+    digitalWrite(heaterReset,HIGH);
+    delay(10);
+    digitalWrite(heaterReset,LOW);
+  }
+ }
 
 void pullPin(){
   updateOled("Pull Flight Pin to start timer");
