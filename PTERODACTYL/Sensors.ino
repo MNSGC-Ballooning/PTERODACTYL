@@ -11,13 +11,15 @@
 #define PIN_RESET 9  
 #define DC_JUMPER 1 
 
-#define thermBatPin A22 // new with Power Plane
 #define thermIntPin A16
 #define thermExtPin A17
 #define ubloxSerial Serial3       // Serial communication lines for the ublox GPS -- PCB pins: Serial5
 #define heaterSet 14
 #define heaterReset 15
-#define thermIntPin A22 // With analog pins you must specify using ‘A’ out front
+#define thermHeatPin A22 // With analog pins you must specify using ‘A’ out front
+
+#define sirenSet 10 //Serial 1 Values: 0,1 (RFD900)
+#define sirenReset 9 //Serial 2 Values: 9,10 (XBEEPRO/SATCOM)
 
 MS5611 baro;
 MicroOLED oled(PIN_RESET, DC_JUMPER);    // I2C declaration
@@ -38,12 +40,13 @@ float T; // these three variables are used for the calculation from adc value to
 float currentTempC; // The current temperature in Celcius
 float currentTempF; // The current temperature in Fahrenheit
 
-float minimumTemp = 90; // Value is not important for now
+float minimumTemp = 80; // Value undetermined (80 for testing)
 float tolerance = 1; // Again, not important for now
 float heaterTempValue; // This will be set by some sensor read function. Just pretend this variable always has the temperature
 float minimumTemperature = minimumTemp;
 float maximumTemperature = (minimumTemp + tolerance); // all of these are redudant, but allows for changing of maximum/min temp as opposed to having max temp be just = to tolerance
 
+bool override = false;
 
 void ubloxSetup(){
   ubloxSerial.begin(UBLOX_BAUD);
@@ -131,6 +134,37 @@ void heaterSetup(){
   pinMode(heaterReset,OUTPUT);
 }
 
+void sirenSetup(){
+  pinMode(sirenSet, OUTPUT);
+  pinMode(sirenReset, OUTPUT);
+  sirenOff();
+}
+
+void sirenOn(){
+  digitalWrite(sirenSet, HIGH);
+  delay(10);
+  digitalWrite(sirenSet, LOW);
+}
+
+void sirenOff(){
+  digitalWrite(sirenReset, HIGH);
+  delay(10);
+  digitalWrite(sirenReset, LOW);
+}
+
+void overrideOn(){
+  override = true;
+}
+
+void sirenUpdate(){
+  if(altitudeFt>10000 && !override){
+    sirenOff();
+  }
+  else if(altitudeFt<10000 && !override){
+    sirenOn();
+  }
+}
+
 // update MS5611 pressure sensor
 void updateMS() {
   msTemperature = baro.readTemperature();
@@ -157,7 +191,7 @@ void updateThermistor(){
   currentTempF = currentTempC*9/5+32;
   thermistorExt = currentTempF;
 
-  adcVal = analogRead(thermIntPin);
+  adcVal = analogRead(thermHeatPin);
   logR = log(((adcMax/adcVal)-1)*R1);
   Tinv = A+B*logR+C*logR*logR*logR;
   T = 1/Tinv;
@@ -179,7 +213,8 @@ void updateDataStrings(){
             String(ublox.getHour()-5) + "," + String(ublox.getMinute()) + "," + String(ublox.getSecond()) + ","
            + String(ublox.getLat(), 4) + ", " + String(ublox.getLon(), 4) + ", " + String(altitudeFtGPS, 4)
            +  ", " + String(altitudeFt) + ", " + String(thermistorInt) + ", " + String(thermistorExt) + ", "
-           + String(msTemperature) + ", " + String(msPressure) + "," + String(0) + "," + String(0);
+           + String(heaterTempValue) + ", " + String(msTemperature) + ", " + String(0) + "," + String(msPressure) + "," + String((millis()-ppodOffset-2000)/1000) + "," ;
+//analog pressure is from Honeywell sensor (not connected, 0 in string above)
 
   data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +

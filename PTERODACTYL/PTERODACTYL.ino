@@ -38,7 +38,7 @@ String proCommand;
 String satComPacket;
 int lineNumber = 0;
 
-String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since bootup (sec), Recent Radio Traffic, magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since pin pulled (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z, Recent Radio Traffic";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -131,7 +131,16 @@ void setup() {
   ubloxSetup();
   Serial.println("ublox setup complete");
 
+  Serial.print("starting heater setup... ");
   heaterSetup();
+  Serial.println("heater setup complete");
+
+  if(satCom==1)//If Satcom not connected, using Satcom serial pins (default, can change in code)
+  {
+    Serial.print("starting siren setup... ");
+    sirenSetup();
+    Serial.println("siren setup complete");
+  }
   
   pressureToAltitudeSetup();
   if(ppod==0) ppodSetup();
@@ -180,6 +189,7 @@ void updateData(){
   updateUblox();
   updateXbee();
   updateXbeePro();
+  sirenUpdate();
 
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
@@ -198,6 +208,7 @@ void updateData(){
     updateSmart();
     updateDataStrings();
     setHeaterState();
+    sirenUpdate();
     xbeeMessage="";
   }        
 }

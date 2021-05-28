@@ -2,7 +2,7 @@
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
 #define rfd900Serial Serial1   //this line should all be commented if you aren't using an RFD900
-#define xbeeProSerial Serial2
+#define xbeeProSerial Serial2  //SATCOM
 #define XBEE_PRO_BAUD 38400
 #define RELAY_BAUD 57600
 
@@ -113,15 +113,18 @@ void updateXbee(){ // This is disgusting
   
   // Key: (keep this up to date)
   //
-  // T      reports back time remaining until cut.
+  // TIME   reports back time remaining until cut.
   // +##    adds time to cut timer 
   // -##    subtracts time to cut timer
-  // A      reports remaining altitude until cut.
+  // ALT    reports remaining altitude until cut.
   // A+##   adds altitude (m) to cut altitude
   // A-##   subtracts altitude (m) to cut altitude
-  // C      releases cubes from PPOD
-  // D      sends data string
-  // M      Polo! just a ping command
+  // CUT    releases cubes from PPOD
+  // DATA   sends data string
+  // MARCO  Polo! just a ping command
+  // FREQ=##  new send rate for xbee
+  // SIRENON  turns on siren (if connected) - overrides altitude criteria for siren
+  // SIRENOFF turns off siren (if connected) - overrides altitude criteria for siren
 
   //RFD900 Comms Relaying incoming xbee data
   if (xbeeSerial.available() > 10 && rfd900==0) { // RELAY!!
@@ -146,7 +149,7 @@ void updateXbee(){ // This is disgusting
   }
 
  // Payload receiving a message via rfd900 Comms unit
- if (rfd900==1 && satCom==1 && xbeeSerial.available() > 10){
+ if (rfd900==1 && satCom==1 && xbeeSerial.available() > 0){ //why >10 for serial available
   groundCommand = xbeeSerial.readString();
   if(groundCommand.startsWith(xbeeID))
   {
@@ -154,7 +157,12 @@ void updateXbee(){ // This is disgusting
     xbeeSerial.println(xbeeID + ", " + interpretMessage(groundCommand) + "!");
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
   }
+  else{
+    xbeeSerial.println("GLOBAL, " + interpretMessage(groundCommand) + "!");
+    xbeeMessage = "GLOBAL: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
+  }
  }
+ 
 
  if((millis() - xbeeTimer) > xbeeRate){
       
@@ -278,9 +286,36 @@ String interpretMessage( String myCommand ){
       xbeeMessage = "New Send Rate: " + myCommand;
       xbeeRate = myCommand.toInt();
     }
+    else if(myCommand.startsWith("SIRENOFF")){
+      if(satCom == 1){
+        overrideOn();
+        sirenOff();
+        xbeeMessage = "Siren Off";
+      }
+      else{
+        xbeeMessage = "Error, no siren connected";
+      }
+    }
+    else if(myCommand.startsWith("SIRENON")){
+      if(satCom == 1){
+        overrideOn();
+        sirenOn();
+        xbeeMessage = "Siren On";
+      }
+      else{
+        xbeeMessage = "Error, no siren connected";
+      }
+    }
+    else if(myCommand.startsWith("ID")){
+      xbeeMessage = xbeeID;
+    }
     else{
       xbeeMessage = "Error - command not recognized: " + groundCommand;
     }
     if(xbeeMessage!="") return xbeeMessage;
   }
   
+ //Radio Ideas:
+ //cutaway, resistor burner(string wrapped around)
+ //remote data download from SD
+ //communicating between pteros - may be possible, need to test
