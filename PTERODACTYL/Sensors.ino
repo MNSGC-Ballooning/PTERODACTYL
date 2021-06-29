@@ -262,3 +262,8 @@ void pullPin(){
   digitalWrite(sdLED,LOW);
   delay(2000);
 }
+
+void giveFileName(){ 
+   xbeeSerial.print(String(filename) + 'X'); 
+   xbeeSerial.flush(); 
+}

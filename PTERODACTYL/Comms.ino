@@ -125,6 +125,9 @@ void updateXbee(){ // This is disgusting
   // FREQ=##  new send rate for xbee
   // SIRENON  turns on siren (if connected) - overrides altitude criteria for siren
   // SIRENOFF turns off siren (if connected) - overrides altitude criteria for siren
+  //GIVE    Transmit all SD data for emergency recovery (payload cannot be recovered but is visable) 
+  //NAME    gets name of file currently being read for use in reciver 
+
 
   //RFD900 Comms Relaying incoming xbee data
   if (xbeeSerial.available() > 10 && rfd900==0) { // RELAY!!
@@ -154,12 +157,23 @@ void updateXbee(){ // This is disgusting
   if(groundCommand.startsWith(xbeeID))
   {
     groundCommand.remove(0,xbeeID.length()+1);
+    if (groundCommand.startsWith("GIVE")){
+      interpretMessage(groundCommand);
+    }
+    else{
     xbeeSerial.println(xbeeID + ", " + interpretMessage(groundCommand) + "!");
     xbeeMessage = xbeeID + " RECEIVED: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
+    }
   }
   else{
+    groundCommand.remove(0,xbeeID.length()+1);
+    if (groundCommand.startsWith("GIVE")){
+      interpretMessage(groundCommand);
+    }
+    else{ 
     xbeeSerial.println("GLOBAL, " + interpretMessage(groundCommand) + "!");
     xbeeMessage = "GLOBAL: " + groundCommand + "; SENT: " + interpretMessage(groundCommand);
+    }
   }
  }
  
@@ -308,6 +322,16 @@ String interpretMessage( String myCommand ){
     }
     else if(myCommand.startsWith("ID")){
       xbeeMessage = xbeeID;
+    }
+     else if(myCommand.startsWith("GIVE")){
+       myCommand.remove(0,4);
+       Serial.println(myCommand);  
+       giveData(myCommand); 
+       xbeeMessage = "Data sent to reciver unit!";  
+    }
+    else if(myCommand.startsWith("NAME")){
+      giveFileName(); 
+      xbeeMessage = "File name: " + String(filename);   
     }
     else{
       xbeeMessage = "Error - command not recognized: " + groundCommand;
