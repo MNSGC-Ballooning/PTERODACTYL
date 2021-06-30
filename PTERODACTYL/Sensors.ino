@@ -144,12 +144,14 @@ void sirenOn(){
   digitalWrite(sirenSet, HIGH);
   delay(10);
   digitalWrite(sirenSet, LOW);
+  sirenStatus = "SIREN ON";
 }
 
 void sirenOff(){
   digitalWrite(sirenReset, HIGH);
   delay(10);
   digitalWrite(sirenReset, LOW);
+  sirenStatus = "SIREN OFF";
 }
 
 void overrideOn(){
@@ -218,7 +220,7 @@ void updateDataStrings(){
 
   data = groundData + String(magnetometer[0]) + ", " + String(magnetometer[1]) + ", " + String(magnetometer[2]) + ", " +
             String(accelerometer[0]) + ", " + String(accelerometer[1]) + ", " + String(accelerometer[2]) + ", " +
-            String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," +  xbeeMessage;
+            String(gyroscope[0]) + ", " + String(gyroscope[1]) + ", " + String(gyroscope[2]) + "," + heaterStatus + ", " + sirenStatus + ", " + xbeeMessage;
 
   if(ppod==0) data = data + ", " + String(smartRelease);
   lineNumber +=1;
@@ -230,16 +232,24 @@ void updateDataStrings(){
 }
 
 void setHeaterState(){
- 
-  if(heaterTempValue <= minimumTemperature){ 
+  if(((millis()-ppodOffset-2000)/1000) > 1800 && ((millis()-ppodOffset-2000)/1000) < 3000){
+    //heater test for 30-50min after pull
     digitalWrite(heaterSet,HIGH);
     delay(10); 
     digitalWrite(heaterSet,LOW);
+    heaterStatus = "HEATER ON TIMER TEST";
+  }
+  else if(heaterTempValue <= minimumTemperature){ 
+    digitalWrite(heaterSet,HIGH);
+    delay(10); 
+    digitalWrite(heaterSet,LOW);
+    heaterStatus = "HEATER ON";
   }
   else if(heaterTempValue >= maximumTemperature){ 
     digitalWrite(heaterReset,HIGH);
     delay(10);
     digitalWrite(heaterReset,LOW);
+    heaterStatus = "HEATER OFF";
   }
  }
 
