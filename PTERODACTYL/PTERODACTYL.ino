@@ -42,7 +42,7 @@ String proCommand;
 String satComPacket;
 int lineNumber = 0;
 
-String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since pin pulled (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z, Recent Radio Traffic";
+String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since pin pulled (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z, Heater Status, Siren Status, Recent Radio Traffic";
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -88,6 +88,11 @@ byte statusByte;
 byte IDByte = 0xbb;
 boolean statusArr[] = {0,0,0,0,0,0,0,0};
 int statusInt=0;
+
+
+String heaterStatus;
+String sirenStatus;
+
 
 ////////////Global SD varibles////////////
 

@@ -166,6 +166,8 @@ void updateXbee(){ // This is disgusting
     }
   }
   else{
+    //groundCommand.remove(0,xbeeID.length()+1);
+
     
     if (groundCommand.startsWith("GIVE")){
       interpretMessage(groundCommand);
