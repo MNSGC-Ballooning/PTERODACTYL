@@ -89,8 +89,10 @@ byte IDByte = 0xbb;
 boolean statusArr[] = {0,0,0,0,0,0,0,0};
 int statusInt=0;
 
+
 String heaterStatus;
 String sirenStatus;
+
 
 ////////////Global SD varibles////////////
 
