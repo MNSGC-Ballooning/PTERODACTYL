@@ -6,6 +6,9 @@
 
 #define xbeeSerial Serial5        // Serial communication lines for the xbee radio -- PCB pins: Serial3
 
+String xbeeSendRequest = "Readyfordata";
+String a0;
+
 RelayXBee xbee = RelayXBee(&xbeeSerial, xbeeID);
 
 float testFloat = 128.0;
@@ -69,7 +72,16 @@ void finishSend(){
 }
 
 void updateXbee(){ // This is disgusting
-
+  
+//    For new satCom relay code
+//    a0 = xbeeSerial.readString();
+//    xbeeSerial.flush();
+//    //Serial.println(a0);
+//    if (a0 == xbeeSendRequest) {
+//   delay(500);
+//   xbeeSerial.print(xbeeID + "," + satData + "!" );
+//   Serial.println(xbeeID + "," + satData + "!");
+    }
   if((millis() - xbeeTimer) > xbeeRate){ 
     
     xbeeTimer = millis();
