@@ -81,7 +81,7 @@ void updateXbee(){ // This is disgusting
 //   delay(500);
 //   xbeeSerial.print(xbeeID + "," + satData + "!" );
 //   Serial.println(xbeeID + "," + satData + "!");
-    }
+//    }
   if((millis() - xbeeTimer) > xbeeRate){ 
     
     xbeeTimer = millis();
