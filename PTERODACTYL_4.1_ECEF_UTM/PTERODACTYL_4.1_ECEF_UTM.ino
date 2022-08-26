@@ -1,9 +1,35 @@
-#include <SD.h>
+// MODIFIED FOR TEENSY 4.1 --> AND ECEF + UTM corrdianate code
+
+
+//-----------BELOW IS THE ECEF & UTM VARIABLE SECTION ---------
+// BELOW is the new library added for ECEF data 
+#include <SparkFun_u-blox_GNSS_Arduino_Library.h> //http://librarymanager/All#SparkFun_u-blox_GNSS
+SFE_UBLOX_GNSS sparkFunGNSS;
+#define ecefSerial Serial2
+
+bool usingM9N = true; //this variable that specifies if using m9n or not
+bool usingTinyGPSLibrary = false; //bool that decides if using tiny gps library for GPS data or if using SPARKFUN gps library
+
+//sparkfun library => NAV messages (ecef & PVT), tiny GPS => NMEA messages (traditional LLA)
+
+//initializaiton of ECEF variables
+double ecefX, ecefY, ecefZ;
+double posAcc;
+byte SIV;
+double latCalc, longCalc, altCalc;
+
+
+//UTM vairabels:l
+double UTMNorthing, UTMEasting;
+char UTMZoneLetter;
+int UTMZoneNum;
+//-----------ABOVE IS THE ECEF & UTM VARIABLE SECTION ---------
+
 #define fixLED 26                 // LED pin to indicate GPS fix
 #define ppodLED 24                // LED pin to indicate PPOD status
 #define xbeeLED 27                // LED pin to indicate xbee communication
 #define sdLED 25                  // LED pin to indicate sd status
-#define serialBAUD 9600           // when using arduino serial monitor, make sure baud rate is set to this same value
+#define serialBAUD 115200           // when using arduino serial monitor, make sure baud rate is set to this same value
 
 #define ppodSwitchPin 30          
 #define satSwitchPin 31
@@ -16,9 +42,6 @@
 #define id3SwitchPin 22
 #define id4SwitchPin 23
 #define pullBeforeFlightPin 16
-
-#define chipSelect BUILTIN_SDCARD //Should highlight if you have teensy 3.5/3.6/4.0 selected
-
 
 int rfd900 = 1; // set true if you want this thing to operate with a rfd900 on serialX (declare above)
 int ppod = 1; // set true if you want this thing to operate as ppod flight computer
@@ -42,7 +65,8 @@ String proCommand;
 String satComPacket;
 int lineNumber = 0;
 
-String header = "Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), AltEst(ft), intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since pin pulled (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z, Heater Status, Siren Status, Recent Radio Traffic";
+String header = "Millis, Year, Month, Day, Hour, Minute, Second, Lat, Lon, Alt(ft), ECEF Lat, ECEF Long, ECEF Alt(ft), AltEst(ft), ECEF X, ECEF Y, ECEF Z, UTM Cord., intT(F), extT(F), batTemp(F), msTemp(F), analogPress(PSI), msPressure(PSI), time since pin pulled (sec), magnetometer x, magnetometer y, magnetometer z, accelerometer x, accelerometer y, accelerometer z, gyroscope x, gyroscope y, gyroscope z";
+
 unsigned long int dataTimer = 0;
 unsigned long int dataTimerIMU = 0;
 unsigned long int ppodOffset = 0;
@@ -89,20 +113,6 @@ byte IDByte = 0xbb;
 boolean statusArr[] = {0,0,0,0,0,0,0,0};
 int statusInt=0;
 
-
-String heaterStatus;
-String sirenStatus;
-
-
-////////////Global SD varibles////////////
-
-File datalog;
-File datalogIMU;
-File sender; ///NEWNEWNEW
-char filename[] = "SDCARD00.csv";
-char senderName[] = "SDCARD00.csv"; /// NEWNEWNEW
-bool sdActive = false;
-
 void setup() {
   
   Serial.begin(serialBAUD); //define baud rate in variable decleration above
@@ -124,6 +134,12 @@ void setup() {
   if(ppod==0)xbeeID = "PPOD";
   if(satCom==0 && rfd900==0) xbeeID = "SATC"; 
 
+  if(xbeeID!="UMN0")IDByte = 0xdd;
+
+  Serial.println("Starting sparkfun ECEF setup...");
+  ecefUbloxSetup();
+  Serial.println("Sparkfun ECEF setup is complete");
+  
   Serial.print("starting OLED setup... ");
   oledSetup();
   Serial.println("OLED setup complete");
@@ -144,28 +160,17 @@ void setup() {
   Serial.print("starting xbee setup... ");
   xbeeSetup();
   Serial.println("xbee setup complete");
-
+/*
   Serial.print("starting ublox setup... ");
   ubloxSetup();
   Serial.println("ublox setup complete");
-
-  Serial.print("starting heater setup... ");
-  heaterSetup();
-  Serial.println("heater setup complete");
-
-  if(satCom==1)//If Satcom not connected, using Satcom serial pins (default, can change in code)
-  {
-    Serial.print("starting siren setup... ");
-    sirenSetup();
-    Serial.println("siren setup complete");
-  }
-  
+  */
   pressureToAltitudeSetup();
   if(ppod==0) ppodSetup();
-  if(rfd900==0) rfd900Setup();
+  if(rfd900==0 && satCom==1) rfd900Setup();
   logData(header);
   if(pullOn==0) pullPin();
-  if(satCom==0) satComSetup(); 
+  if(satCom==0 && rfd900==0) satComSetup(); 
 
   Serial.println("rfd900:"+ String(rfd900) +"," + "satCom:"+ String(satCom));
 }
@@ -173,6 +178,8 @@ void setup() {
 void loop() {
   updateData(); 
 }
+
+////////////// Functions ///////////////
 
 // Pressure to altitude function setup
 void pressureToAltitudeSetup()
@@ -191,23 +198,28 @@ void pressureToAltitude(){
   float pressurePSF = (msPressure*144);
   
   float altFt = -100.0;
-  if (pressurePSF > pressureBoundary1){// altitude is less than 36,152 ft ASL
-     altFt = (459.7+59-518.6*pow((pressurePSF/2116),(1/5.256)))/.00356;
+  if (pressurePSF > pressureBoundary1)// altitude is less than 36,152 ft ASL
+  {
+    altFt = (459.7+59-518.6*pow((pressurePSF/2116),(1/5.256)))/.00356;
   }
-  else if (pressurePSF <= pressureBoundary1 && pressurePSF > pressureBoundary2){ // altitude is between 36,152 and 82,345 ft ASL
+  else if (pressurePSF <= pressureBoundary1 && pressurePSF > pressureBoundary2) // altitude is between 36,152 and 82,345 ft ASL
+  {
     altFt = (1.73-log(pressurePSF/473.1))/.000048;
   }
-  else if (pressurePSF <= pressureBoundary2){// altitude is greater than 82,345 ft ASL
+  else if (pressurePSF <= pressureBoundary2)// altitude is greater than 82,345 ft ASL
+  {
     altFt = (459.7-205.5-389.98*pow((pressurePSF/51.97),(1/-11.388)))/-.00164;
   } 
   altitudeFt = altFt;
 }
 
 void updateData(){
-  updateUblox();
+  //updateUblox();
   updateXbee();
   updateXbeePro();
-  sirenUpdate();
+  //new:
+  updateECEF();
+  updateUTM();
 
   if(millis() - dataTimer > dataRate){
     dataTimer = millis();
@@ -219,14 +231,13 @@ void updateData(){
     digitalWrite(sdLED,LOW);
     digitalWrite(fixLED,LOW);
 
+    if(satCom==0)updateStatus();
     pressureToAltitude();
     updateThermistor();
     updateMS();    
     updateIMU();
     updateSmart();
     updateDataStrings();
-    setHeaterState();
-    sirenUpdate();
     xbeeMessage="";
   }        
 }
